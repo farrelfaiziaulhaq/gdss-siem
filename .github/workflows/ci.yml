@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Kompilasi & unit test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pasang Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Pasang cargo-leptos
+        run: |
+          if ! command -v cargo-leptos &>/dev/null; then
+            cargo install cargo-leptos --locked
+          fi
+
+      - name: Periksa kompilasi (SSR)
+        run: cargo check --features ssr
+
+      - name: Periksa kompilasi (WASM hydrate)
+        run: cargo check --lib --features hydrate --target wasm32-unknown-unknown
+
+      - name: Unit test
+        run: cargo test --features ssr --lib
+
+      - name: Build lengkap
+        run: cargo leptos build
+
+  lint:
+    name: Format & clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pasang Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-lint-
+
+      - name: Periksa format
+        run: cargo fmt -- --check
+
+      - name: Clippy (SSR)
+        run: cargo clippy --features ssr -- -D warnings
+
+  seed-check:
+    name: Validasi skrip seed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Periksa sintaks Python
+        run: python3 -m py_compile scripts/seed_emulator.py
