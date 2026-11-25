@@ -29,7 +29,7 @@ Rekomendasi utama untuk teman kelompok dan saat presentasi: unduh paket siap pak
 
 ### A. Windows 10 / 11 (`x86_64`)
 
-1. Buka **[Releases Terbaru](https://github.com/farrelfaiziaulhaq/gdss-siem/releases/latest)** lalu unduh **`gdss-siem-v1.1.0-windows-x86_64.zip`**.
+1. Buka **[Releases Terbaru](https://github.com/farrelfaiziaulhaq/gdss-siem/releases/latest)** lalu unduh **`gdss-siem-v1.2.0-windows-x86_64.zip`**.
 2. Klik kanan file `.zip` tersebut lalu pilih **Extract All...**
 3. Di dalam folder hasil ekstrak, cukup **klik dua kali `start.bat`**:
    - Skrip otomatis memeriksa (dan bila ada `winget`, ikut membantu memasang) **Python 3**, **Java JRE 21** (untuk Firestore Emulator), **Node.js**, serta **Firebase CLI**.
@@ -44,8 +44,8 @@ File peluncur siap klik lainnya di dalam folder rilis Windows:
 ### B. Linux (`x86_64`)
 
 ```bash
-curl -fL https://github.com/farrelfaiziaulhaq/gdss-siem/releases/latest/download/gdss-siem-v1.1.0-linux-x86_64.tar.gz | tar -xz
-cd gdss-siem-v1.1.0-linux-x86_64
+curl -fL https://github.com/farrelfaiziaulhaq/gdss-siem/releases/latest/download/gdss-siem-v1.2.0-linux-x86_64.tar.gz | tar -xz
+cd gdss-siem-v1.2.0-linux-x86_64
 ./start.sh
 ```
 
@@ -118,9 +118,9 @@ Buka `http://127.0.0.1:3000`. Pengguna yang belum masuk otomatis diarahkan ke `/
 
 Halaman Beranda menampilkan status sesi saat ini, progres pengiriman penilaian ketiga *decision maker* (indikator lampu status), panel keputusan kelompok, serta daftar alternatif dan kriteria. Tersedia tombol **Ganti tema** (terang/gelap) di kanan atas yang tersimpan di `localStorage`.
 
-| Mode Gelap (Kondisi Awal 0/3 Masuk) | Mode Mobile Responsif (390px) |
-|---|---|
-| ![Beranda Awal Mode Gelap](docs/img/03-beranda-gelap.png) | ![Beranda Mobile](docs/img/m-beranda.png) |
+| Mode Gelap Obsidian (Default) | Mode Terang Sky-Glass | Mode Mobile Responsif (390px) |
+|---|---|---|
+| ![Beranda Mode Gelap](docs/img/03-beranda-gelap.png) | ![Beranda Mode Terang](docs/img/02-beranda-awal.png) | ![Beranda Mobile](docs/img/m-beranda.png) |
 
 ---
 

@@ -15,16 +15,17 @@ const MEREK: &str = "Ruang Keputusan SIEM";
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
         <!DOCTYPE html>
-        <html lang="id">
+        <html lang="id" data-theme="dark">
             <head>
                 <meta charset="utf-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-                // Tema pilihan pengguna dipasang sebelum CSS dimuat agar tidak berkedip.
+                // Default memakai tema gelap sesuai referensi; pilihan pengguna di localStorage tetap diprioritaskan.
                 <script>
-                    "try{var t=localStorage.getItem('tema');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}"
+                    "try{var t=localStorage.getItem('tema');document.documentElement.setAttribute('data-theme',t==='light'?'light':'dark')}catch(e){}"
                 </script>
                 <link rel="icon" href="data:,"/>
-                <link rel="preload" href="/fonts/ibm-plex-sans-latin-400-normal.woff2" r#as="font" r#type="font/woff2" crossorigin="anonymous"/>
+                <link rel="preload" href="/fonts/plus-jakarta-sans-latin-500-normal.woff2" r#as="font" r#type="font/woff2" crossorigin="anonymous"/>
+                <link rel="preload" href="/fonts/plus-jakarta-sans-latin-700-normal.woff2" r#as="font" r#type="font/woff2" crossorigin="anonymous"/>
                 <AutoReload options=options.clone()/>
                 <HydrationScripts options/>
                 <MetaTags/>
@@ -53,14 +54,20 @@ pub fn App() -> impl IntoView {
     }
 }
 
-/// Persentase bulat untuk tampilan ringkas (mis. 0.4567 -> "46%").
 fn persen_bulat(x: f64) -> String {
     format!("{}%", (x * 100.0).round() as i64)
 }
 
-/// Skor indeks 0..100 bulat untuk tampilan ringkas SAW (mis. 0.9687 -> 97).
 fn indeks_100(x: f64) -> i64 {
     (x * 100.0).round() as i64
+}
+
+fn inisial(jabatan: &str) -> String {
+    jabatan
+        .chars()
+        .next()
+        .map(|c| c.to_uppercase().to_string())
+        .unwrap_or_else(|| "D".to_string())
 }
 
 // ------------------------------------------------------------------ kerangka
@@ -70,29 +77,33 @@ fn Kerangka(user: Profil, children: Children) -> impl IntoView {
     let keluar = ServerAction::<Keluar>::new();
     view! {
         <a class="lewati" href="#isi">"Lewati ke konten utama"</a>
-        <header class="kepala">
-            <div class="kepala-kiri">
-                <a href="/" class="merek">{MEREK}</a>
+        <div class="atmosfer" aria-hidden="true"></div>
+        <header class="kepala-bungkus">
+            <div class="kepala-kapsul">
+                <a href="/" class="merek">
+                    <span class="merek-emblem" aria-hidden="true">"S"</span>
+                    <span class="merek-utama">{MEREK}</span>
+                </a>
                 <nav aria-label="Navigasi utama" class="nav">
                     <A href="/" exact=true>"Beranda"</A>
                     <A href="/penilaian">"Penilaian saya"</A>
                     <A href="/hasil">"Hasil"</A>
                 </nav>
-            </div>
-            <div class="akun">
-                <p class="akun-id">
-                    <span class="akun-jabatan">{user.jabatan}</span>
-                    <span class="akun-nama">{user.nama}</span>
-                </p>
-                <TombolTema/>
-                <ActionForm action=keluar>
-                    <button type="submit" class="btn-teks">"Keluar"</button>
-                </ActionForm>
+                <div class="akun">
+                    <p class="akun-id">
+                        <span class="akun-jabatan">{user.jabatan}</span>
+                        <span class="akun-nama">{user.nama}</span>
+                    </p>
+                    <TombolTema/>
+                    <ActionForm action=keluar>
+                        <button type="submit" class="btn-kapsul-keluar">"Keluar"</button>
+                    </ActionForm>
+                </div>
             </div>
         </header>
-        <main id="isi" class="isi">{children()}</main>
-        <footer class="kaki">
-            <p>"GDSS Pemilihan SIEM Tim SOC · Praktikum Sistem Informasi"</p>
+        <main id="isi" class="wadah isi">{children()}</main>
+        <footer class="wadah kaki">
+            <p>"GDSS Pemilihan SIEM Tim SOC · Metode ROC, SAW & Voting Borda · Praktikum Sistem Informasi"</p>
         </footer>
     }
 }
@@ -103,16 +114,7 @@ fn TombolTema() -> impl IntoView {
         #[cfg(feature = "hydrate")]
         {
             if let Some(el) = document().document_element() {
-                let gelap = match el.get_attribute("data-theme").as_deref() {
-                    Some("dark") => true,
-                    Some("light") => false,
-                    _ => window()
-                        .match_media("(prefers-color-scheme: dark)")
-                        .ok()
-                        .flatten()
-                        .map(|m| m.matches())
-                        .unwrap_or(false),
-                };
+                let gelap = el.get_attribute("data-theme").as_deref() != Some("light");
                 let baru = if gelap { "light" } else { "dark" };
                 let _ = el.set_attribute("data-theme", baru);
                 if let Ok(Some(s)) = window().local_storage() {
@@ -129,7 +131,7 @@ fn TombolTema() -> impl IntoView {
 #[component]
 fn Memuat(teks: &'static str) -> impl IntoView {
     view! {
-        <main id="isi" class="isi">
+        <main id="isi" class="wadah isi">
             <div class="panel memuat" role="status" aria-live="polite">
                 <span class="lampu kedip" aria-hidden="true"></span>
                 <span>{teks}</span>
@@ -141,7 +143,7 @@ fn Memuat(teks: &'static str) -> impl IntoView {
 #[component]
 fn Galat(pesan: String, ulang: Callback<()>) -> impl IntoView {
     view! {
-        <main id="isi" class="isi">
+        <main id="isi" class="wadah isi">
             <div class="panel galat" role="alert">
                 <h1>"Data gagal dimuat"</h1>
                 <p>{pesan}</p>
@@ -157,11 +159,11 @@ fn Galat(pesan: String, ulang: Callback<()>) -> impl IntoView {
 fn TidakDitemukan() -> impl IntoView {
     view! {
         <Title text=format!("Halaman tidak ada · {MEREK}")/>
-        <main id="isi" class="isi">
+        <main id="isi" class="wadah isi">
             <div class="panel">
                 <h1>"Halaman tidak ditemukan"</h1>
                 <p>"Alamat yang diminta tidak tersedia di aplikasi ini."</p>
-                <a class="btn" href="/">"Kembali ke beranda"</a>
+                <a class="btn utama" href="/">"Kembali ke beranda"</a>
             </div>
         </main>
     }
@@ -196,65 +198,105 @@ fn HalamanMasuk() -> impl IntoView {
                 }
             })}
         </Suspense>
-        <main id="isi" class="halaman-masuk">
-            <div class="kartu-masuk">
-                <div class="masuk-atas">
-                    <p class="merek">{MEREK}</p>
-                    <TombolTema/>
+        <div class="atmosfer" aria-hidden="true"></div>
+        <div class="halaman-masuk">
+            <header class="kepala-bungkus">
+                <div class="kepala-kapsul">
+                    <span class="merek">
+                        <span class="merek-emblem" aria-hidden="true">"S"</span>
+                        <span class="merek-utama">{MEREK}</span>
+                    </span>
+                    <div class="akun">
+                        <TombolTema/>
+                    </div>
                 </div>
-                <h1>"Masuk sebagai decision maker"</h1>
-                <p class="pengantar">
-                    "Gunakan akun sesuai jabatan Anda. Penilaian bersifat independen dan baru dibuka setelah konsensus ditetapkan."
-                </p>
-                <ActionForm action=masuk>
-                    <div class="form">
-                        <label for="email">"Email"</label>
-                        <input
-                            id="email"
-                            name="email"
-                            type="email"
-                            autocomplete="username"
-                            required
-                            prop:value=move || email_val.get()
-                            on:input=move |ev| email_val.set(event_target_value(&ev))
-                        />
-                        <label for="password">"Kata sandi"</label>
-                        <input
-                            id="password"
-                            name="password"
-                            type="password"
-                            autocomplete="current-password"
-                            required
-                            prop:value=move || pass_val.get()
-                            on:input=move |ev| pass_val.set(event_target_value(&ev))
-                        />
-                        {galat}
-                        <button type="submit" class="btn utama penuh" disabled=move || masuk.pending().get()>
-                            {move || if masuk.pending().get() { "Memeriksa akun…" } else { "Masuk" }}
-                        </button>
-                    </div>
-                </ActionForm>
+            </header>
 
-                <details class="demo-akun">
-                    <summary>"Akun demo untuk pengujian"</summary>
-                    <p class="kecil redup">"Klik salah satu jabatan untuk mengisi kolom email dan sandi secara otomatis:"</p>
-                    <div class="demo-daftar">
-                        <button type="button" class="btn-demo" on:click=move |_| isi_demo("ciso@gdss-siem.test", "ciso-gdss-2026")>
-                            <span>"CISO"</span>
-                            <span class="redup kecil">"Jabatan tertinggi · voting"</span>
-                        </button>
-                        <button type="button" class="btn-demo" on:click=move |_| isi_demo("soc@gdss-siem.test", "soc-gdss-2026")>
-                            <span>"SOC Analyst"</span>
-                            <span class="redup kecil">"Operasional deteksi"</span>
-                        </button>
-                        <button type="button" class="btn-demo" on:click=move |_| isi_demo("netadmin@gdss-siem.test", "netadmin-gdss-2026")>
-                            <span>"Network Admin"</span>
-                            <span class="redup kecil">"Infrastruktur jaringan"</span>
-                        </button>
-                    </div>
-                </details>
-            </div>
-        </main>
+            <main id="isi" class="wadah masuk-panggung">
+                <div class="masuk-grid">
+                    <section class="panggung-spotlight masuk-hero" aria-label="Gambaran sistem">
+                        <div class="orb-latar" aria-hidden="true"></div>
+                        <div class="spotlight-isi">
+                            <p class="kapsul-eyebrow">"Group Decision Support System"</p>
+                            <h1 class="judul-dua-warna">
+                                "Keputusan Kolektif "
+                                <span class="aksen-indigo">"Pemilihan SIEM"</span>
+                                " untuk "
+                                <span class="aksen-emas">"Tim SOC"</span>
+                            </h1>
+                            <p class="subjudul-hero">
+                                "Tiga pemangku kepentingan menilai kandidat secara independen dengan metode ROC dan SAW, lalu disatukan lewat konsensus voting Borda."
+                            </p>
+                            <div class="strip-avatar" aria-label="Tiga peran penilai">
+                                <div class="avatar-tumpuk" aria-hidden="true">
+                                    <span class="bulat-inisial aktif">"C"</span>
+                                    <span class="bulat-inisial aktif">"S"</span>
+                                    <span class="bulat-inisial aktif">"N"</span>
+                                </div>
+                                <span class="kecil redup">"CISO · SOC Analyst · Network Admin"</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="kartu-kaca masuk-kartu" aria-labelledby="judul-masuk-form">
+                        <h2 id="judul-masuk-form">"Masuk sebagai Decision Maker"</h2>
+                        <p class="kecil redup">"Penilaian Anda bersifat rahasia hingga konsensus ditetapkan."</p>
+
+                        <ActionForm action=masuk>
+                            <div class="form">
+                                <div class="field-blok">
+                                    <label for="email">"Email"</label>
+                                    <input
+                                        id="email"
+                                        name="email"
+                                        type="email"
+                                        autocomplete="username"
+                                        required
+                                        prop:value=move || email_val.get()
+                                        on:input=move |ev| email_val.set(event_target_value(&ev))
+                                    />
+                                </div>
+                                <div class="field-blok">
+                                    <label for="password">"Kata sandi"</label>
+                                    <input
+                                        id="password"
+                                        name="password"
+                                        type="password"
+                                        autocomplete="current-password"
+                                        required
+                                        prop:value=move || pass_val.get()
+                                        on:input=move |ev| pass_val.set(event_target_value(&ev))
+                                    />
+                                </div>
+                                {galat}
+                                <button type="submit" class="btn utama penuh" disabled=move || masuk.pending().get()>
+                                    {move || if masuk.pending().get() { "Memeriksa akun…" } else { "Masuk" }}
+                                </button>
+                            </div>
+                        </ActionForm>
+
+                        <details class="demo-akun">
+                            <summary>"Akun demo untuk pengujian"</summary>
+                            <p class="kecil redup">"Klik jabatan untuk mengisi email dan sandi secara otomatis:"</p>
+                            <div class="demo-daftar">
+                                <button type="button" class="btn-demo" on:click=move |_| isi_demo("ciso@gdss-siem.test", "ciso-gdss-2026")>
+                                    <span>"CISO"</span>
+                                    <span class="redup kecil">"Level 3 · Voting"</span>
+                                </button>
+                                <button type="button" class="btn-demo" on:click=move |_| isi_demo("soc@gdss-siem.test", "soc-gdss-2026")>
+                                    <span>"SOC Analyst"</span>
+                                    <span class="redup kecil">"Level 2 · Penilai"</span>
+                                </button>
+                                <button type="button" class="btn-demo" on:click=move |_| isi_demo("netadmin@gdss-siem.test", "netadmin-gdss-2026")>
+                                    <span>"Network Admin"</span>
+                                    <span class="redup kecil">"Level 1 · Penilai"</span>
+                                </button>
+                            </div>
+                        </details>
+                    </section>
+                </div>
+            </main>
+        </div>
     }
 }
 
@@ -288,29 +330,39 @@ fn Beranda(d: Dashboard, proses: ServerAction<ProsesKonsensus>) -> impl IntoView
     let tertinggi = d.dms.first().map(|s| s.jabatan.clone()).unwrap_or_default();
     let level_maks = d.dms.first().map(|s| s.level).unwrap_or(0);
     let alternatif = d.alternatif.clone();
-    let tab_info = RwSignal::new(0u8); // 0 = kandidat, 1 = kriteria
+    let jml_alt = d.alternatif.len();
+    let jml_krit = d.kriteria.len();
+    let tab_info = RwSignal::new(0u8);
 
     let (tahap, status, aksi) = if let Some(k) = &d.konsensus {
         (
-            "Keputusan ditetapkan",
+            "Konsensus ditetapkan",
             format!(
                 "{} terpilih sebagai solusi utama melalui voting Borda oleh {}.",
                 nama_alt(&alternatif, &k.pemenang),
                 k.jabatan_pemroses
             ),
-            view! { <a class="btn utama" href="/hasil">"Buka rincian hasil"</a> }.into_any(),
+            view! {
+                <a class="btn utama" href="/hasil">"Buka rincian hasil"</a>
+                <a class="btn sekunder" href="/penilaian">"Lihat penilaian saya"</a>
+            }
+            .into_any(),
         )
     } else if !d.saya_selesai {
         (
             "Tahap 1 dari 2 · Penilaian individual",
             format!("Anda belum mengirim penilaian ({masuk} dari {jumlah} penilai sudah selesai)."),
-            view! { <a class="btn utama" href="/penilaian">"Isi penilaian saya"</a> }.into_any(),
+            view! {
+                <a class="btn utama" href="/penilaian">"Isi penilaian saya"</a>
+                <a class="btn sekunder" href="#judul-referensi">"Lihat kandidat & kriteria"</a>
+            }
+            .into_any(),
         )
     } else if d.semua_selesai && d.saya_tertinggi {
         (
             "Tahap 2 dari 2 · Siap konsensus",
             format!(
-                "Seluruh penilaian sudah lengkap. Sebagai {}, Anda dapat menetapkan hasil lewat voting Borda.",
+                "Seluruh penilaian telah masuk. Sebagai {}, tetapkan keputusan kelompok melalui voting Borda.",
                 d.user.jabatan
             ),
             view! {
@@ -319,7 +371,7 @@ fn Beranda(d: Dashboard, proses: ServerAction<ProsesKonsensus>) -> impl IntoView
                         {move || if proses.pending().get() { "Memproses voting…" } else { "Proses voting Borda" }}
                     </button>
                 </ActionForm>
-                <a class="btn" href="/penilaian">"Tinjau penilaian saya"</a>
+                <a class="btn sekunder" href="/penilaian">"Tinjau penilaian saya"</a>
             }
             .into_any(),
         )
@@ -329,22 +381,58 @@ fn Beranda(d: Dashboard, proses: ServerAction<ProsesKonsensus>) -> impl IntoView
             format!(
                 "Seluruh penilaian sudah lengkap. Menunggu {tertinggi} memproses voting Borda."
             ),
-            view! { <a class="btn" href="/penilaian">"Ubah penilaian saya"</a> }.into_any(),
+            view! { <a class="btn sekunder" href="/penilaian">"Ubah penilaian saya"</a> }
+                .into_any(),
         )
     } else {
         (
             "Tahap 1 dari 2 · Penilaian individual",
             format!(
-                "Penilaian Anda sudah tersimpan. Menunggu {} penilai lagi sebelum voting dibuka.",
+                "Penilaian Anda sudah tersimpan. Menunggu {} penilai lagi sebelum tahap voting dibuka.",
                 jumlah - masuk
             ),
-            view! { <a class="btn" href="/penilaian">"Ubah penilaian saya"</a> }.into_any(),
+            view! { <a class="btn sekunder" href="/penilaian">"Ubah penilaian saya"</a> }.into_any(),
         )
     };
 
     let galat_proses = move || match proses.value().get() {
         Some(Err(e)) => Some(view! { <p class="pesan galat-teks" role="alert">{pesan(&e)}</p> }),
         _ => None,
+    };
+
+    // Strip avatar status nyata 3 DM di dalam panggung hero
+    let avatar_dm = d
+        .dms
+        .iter()
+        .map(|s| {
+            view! {
+                <span
+                    class="bulat-inisial"
+                    class:aktif=s.selesai
+                    title=format!("{}: {}", s.jabatan, if s.selesai { "Selesai" } else { "Belum menilai" })
+                >
+                    {inisial(&s.jabatan)}
+                </span>
+            }
+        })
+        .collect_view();
+
+    // Kolom kanan: 3 kartu kaca metrik nyata (adaptasi langsung panel kanan referensi)
+    let (metrik_tiga_angka, metrik_tiga_ket) = match &d.konsensus {
+        Some(k) => {
+            let p = k.poin.get(&k.pemenang).copied().unwrap_or(0);
+            (
+                format!("{p} poin"),
+                format!(
+                    "{} unggul konsensus Borda",
+                    nama_alt(&alternatif, &k.pemenang)
+                ),
+            )
+        }
+        None => (
+            format!("{jml_krit} kriteria"),
+            "pembobotan ROC & perhitungan SAW".to_string(),
+        ),
     };
 
     let lampu_meter = d
@@ -375,8 +463,8 @@ fn Beranda(d: Dashboard, proses: ServerAction<ProsesKonsensus>) -> impl IntoView
                                 <p class="dm-jabatan">{format!("{} · {peran}", s.nama)}</p>
                             </div>
                             <div class="dm-kanan">
-                                <p class="dm-status" class:redup=!s.selesai>{ket_status}</p>
-                                {waktu.map(|w| view! { <p class="dm-waktu redup kecil">{w}</p> })}
+                                <p class="dm-status" class:status-ok=s.selesai class:redup=!s.selesai>{ket_status}</p>
+                                {waktu.map(|w| view! { <p class="dm-waktu redup kecil mono">{w}</p> })}
                             </div>
                         </li>
                     }
@@ -399,10 +487,10 @@ fn Beranda(d: Dashboard, proses: ServerAction<ProsesKonsensus>) -> impl IntoView
                             <li class="bar-item" class:juara=i == 0>
                                 <div class="bar-atas">
                                     <span class="bar-judul">
-                                        <span class="no">{i + 1}</span>
+                                        <span class="no mono">{i + 1}</span>
                                         <span class="alt">{nama_alt(&alt, kode)}</span>
                                     </span>
-                                    <span class="poin">{format!("{poin} poin")}</span>
+                                    <span class="poin mono">{format!("{poin} poin")}</span>
                                 </div>
                                 <div class="bar-rel" aria-hidden="true">
                                     <span class="bar-isi" style=lebar></span>
@@ -427,26 +515,51 @@ fn Beranda(d: Dashboard, proses: ServerAction<ProsesKonsensus>) -> impl IntoView
         .into_any(),
     };
 
-    let jml_alt = d.alternatif.len();
-    let jml_krit = d.kriteria.len();
     let alt_list = d.alternatif.clone();
     let krit_list = d.kriteria.clone();
 
     view! {
         <Kerangka user=d.user.clone()>
-            <section class="panel fokus" aria-labelledby="judul-sesi">
-                <p class="label-sesi">{tahap}</p>
-                <h1 id="judul-sesi">"Pemilihan SIEM untuk Tim SOC"</h1>
-                <p class="status">{status}</p>
-                <div class="aksi">{aksi}</div>
-                {galat_proses}
-            </section>
+            <div class="hero-gabungan">
+                <section class="panggung-spotlight fokus" aria-labelledby="judul-sesi">
+                    <div class="orb-latar" aria-hidden="true"></div>
+                    <div class="spotlight-isi">
+                        <p class="kapsul-eyebrow">{tahap}</p>
+                        <h1 id="judul-sesi" class="judul-dua-warna">
+                            "Pemilihan SIEM "
+                            <span class="aksen-indigo">"untuk Tim SOC"</span>
+                        </h1>
+                        <p class="status">{status}</p>
+                        <div class="strip-avatar">
+                            <div class="avatar-tumpuk" aria-hidden="true">{avatar_dm}</div>
+                            <span class="kecil redup">{format!("{masuk} dari {jumlah} decision maker selesai menilai")}</span>
+                        </div>
+                        <div class="aksi aksi-tengah">{aksi}</div>
+                        {galat_proses}
+                    </div>
+                </section>
+
+                <aside class="kolom-metrik-kaca" aria-label="Ringkasan metrik sesi">
+                    <div class="kartu-metrik-kaca">
+                        <p class="metrik-angka">{format!("{masuk}/{jumlah}")}</p>
+                        <p class="metrik-ket">"decision maker telah mengirim penilaian"</p>
+                    </div>
+                    <div class="kartu-metrik-kaca">
+                        <p class="metrik-angka">{jml_alt}</p>
+                        <p class="metrik-ket">"kandidat SIEM & monitoring jaringan"</p>
+                    </div>
+                    <div class="kartu-metrik-kaca aksen">
+                        <p class="metrik-angka emas">{metrik_tiga_angka}</p>
+                        <p class="metrik-ket">{metrik_tiga_ket}</p>
+                    </div>
+                </aside>
+            </div>
 
             <div class="grid-dua">
                 <section class="panel" aria-labelledby="judul-dm">
                     <div class="kepala-panel">
                         <h2 id="judul-dm">"Progres penilai"</h2>
-                        <p class="hitung">{format!("{masuk} dari {jumlah} selesai")}</p>
+                        <p class="hitung mono">{format!("{masuk} dari {jumlah} selesai")}</p>
                     </div>
                     <div class="meter" aria-hidden="true">{lampu_meter}</div>
                     {daftar_dm}
@@ -508,7 +621,7 @@ fn Beranda(d: Dashboard, proses: ServerAction<ProsesKonsensus>) -> impl IntoView
                                 {alt_list.iter().map(|a| view! {
                                     <details class="akordeon">
                                         <summary>
-                                            <span class="kode">{a.kode.clone()}</span>
+                                            <span class="kode mono">{a.kode.clone()}</span>
                                             <span class="akordeon-utama">{a.nama.clone()}</span>
                                             <span class="akordeon-meta">{format!("{} · {}", a.kategori, a.lisensi)}</span>
                                         </summary>
@@ -529,7 +642,7 @@ fn Beranda(d: Dashboard, proses: ServerAction<ProsesKonsensus>) -> impl IntoView
                                 view! {
                                     <details class="akordeon">
                                         <summary>
-                                            <span class="kode">{k.kode.clone()}</span>
+                                            <span class="kode mono">{k.kode.clone()}</span>
                                             <span class="akordeon-utama">{k.nama.clone()}</span>
                                             <span class="akordeon-meta">{sifat}</span>
                                         </summary>
@@ -619,7 +732,6 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
 
     let on_submit = move |ev: SubmitEvent| {
         ev.prevent_default();
-        // Cari kandidat pertama yang belum lengkap, lalu arahkan tab langsung ke sana.
         let belum = alternatif.with_value(|alts| {
             kriteria.with_value(|ks| {
                 alts.iter().enumerate().find_map(|(idx, a)| {
@@ -679,7 +791,7 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
                 };
                 view! {
                     <li class="prioritas-baris">
-                        <span class="no">{i + 1}</span>
+                        <span class="no mono">{i + 1}</span>
                         <div class="prioritas-utama">
                             <div class="prioritas-judul">
                                 <span class="prioritas-nama">{k.nama.clone()}</span>
@@ -696,7 +808,7 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
                                 </ol>
                             </details>
                         </div>
-                        <p class="bobot-angka" title=format!("Bobot desimal ROC: {}", desimal(w, 4))>
+                        <p class="bobot-angka mono" title=format!("Bobot desimal ROC: {}", desimal(w, 4))>
                             {w_persen}
                         </p>
                         <div class="geser">
@@ -740,16 +852,15 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
                 let w = bobot.with_value(|b| b[i]);
                 view! {
                     <tr>
-                        <td class="kode">{i + 1}</td>
+                        <td class="kode mono">{i + 1}</td>
                         <td>{format!("{kode} · {nama}")}</td>
-                        <td class="angka-kanan">{desimal(w, 4)}</td>
+                        <td class="angka-kanan mono">{desimal(w, 4)}</td>
                     </tr>
                 }
             })
             .collect_view()
     };
 
-    // Tab pemilih kandidat di Langkah 2
     let pemilih_kandidat = move || {
         alternatif.with_value(|alts| {
             alts.iter()
@@ -778,7 +889,7 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
                         >
                             <span class="lampu" class:nyala=lengkap aria-hidden="true"></span>
                             <span class="kandidat-tab-nama">{nama}</span>
-                            <span class="kandidat-tab-hitung">{move || format!("{}/{jml_krit}", jml_terisi.get())}</span>
+                            <span class="kandidat-tab-hitung mono">{move || format!("{}/{jml_krit}", jml_terisi.get())}</span>
                         </button>
                     }
                 })
@@ -786,7 +897,6 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
         })
     };
 
-    // Kartu kandidat yang sedang dipilih (hanya 5 baris kriteria, bebas tumpukan dropdown)
     let kartu_aktif = move || {
         let idx = tab_alt.get();
         let Some(a) = alternatif.with_value(|alts| alts.get(idx).cloned()) else {
@@ -805,7 +915,7 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
                     let skala = k.skala.clone();
                     let sifat = match k.jenis {
                         Jenis::Benefit => "Manfaat",
-                        Jenis::Cost => "Biaya · skor 1 paling murah, 5 paling mahal",
+                        Jenis::Cost => "Biaya · 1 termurah, 5 termahal",
                     };
                     let ak_ket = ak.clone();
                     let kk_ket = kk.clone();
@@ -843,7 +953,7 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
                             view! {
                                 <button
                                     type="button"
-                                    class="skor-btn"
+                                    class="skor-btn mono"
                                     class:terpilih=move || terpilih.get()
                                     aria-pressed=move || terpilih.get().to_string()
                                     aria-label=label_aria
@@ -866,7 +976,7 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
                         <div class="baris-skor" role="group" aria-label=format!("{} untuk {}", k.nama, a.nama)>
                             <div class="baris-skor-info">
                                 <p class="baris-skor-judul">
-                                    <span class="kode">{k.kode.clone()}</span>
+                                    <span class="kode mono">{k.kode.clone()}</span>
                                     <span>{k.nama.clone()}</span>
                                     <span class="tag-sifat">{sifat}</span>
                                 </p>
@@ -882,19 +992,17 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
         view! {
             <div id="panel-skor-aktif" role="tabpanel" aria-labelledby=format!("tab-alt-{idx}") class="kartu-kandidat">
                 <div class="kandidat-kepala">
-                    <div>
-                        <p class="kecil redup tanpa-margin">{format!("Kandidat {} dari {jml_alt} · {} · {}", idx + 1, a.kategori, a.lisensi)}</p>
-                        <h3 class="kandidat-judul">{a.nama.clone()}</h3>
-                    </div>
+                    <p class="kecil redup tanpa-margin">{format!("Kandidat {} dari {jml_alt} · {} · {}", idx + 1, a.kategori, a.lisensi)}</p>
+                    <h3 class="kandidat-judul">{a.nama.clone()}</h3>
+                    <p class="alt-ringkas">{a.ringkasan.clone()}</p>
                 </div>
-                <p class="alt-ringkas">{a.ringkasan.clone()}</p>
 
                 <div class="daftar-baris-skor">{baris_kriteria}</div>
 
                 <div class="navigasi-kandidat">
                     {match nama_sebelum {
                         Some(nm) => view! {
-                            <button type="button" class="btn" on:click=move |_| tab_alt.set(idx - 1)>
+                            <button type="button" class="btn sekunder" on:click=move |_| tab_alt.set(idx - 1)>
                                 {format!("Sebelumnya: {nm}")}
                             </button>
                         }.into_any(),
@@ -902,11 +1010,11 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
                     }}
                     {match nama_lanjut {
                         Some(nm) => view! {
-                            <button type="button" class="btn" on:click=move |_| tab_alt.set(idx + 1)>
+                            <button type="button" class="btn sekunder" on:click=move |_| tab_alt.set(idx + 1)>
                                 {format!("Berikutnya: {nm}")}
                             </button>
                         }.into_any(),
-                        None => view! { <span class="kecil redup">"Kandidat terakhir. Periksa lalu kirim penilaian di bawah."</span> }.into_any(),
+                        None => view! { <span class="kecil redup">"Kandidat terakhir. Tinjau lalu kirim penilaian di bawah."</span> }.into_any(),
                     }}
                 </div>
             </div>
@@ -914,11 +1022,10 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
         .into_any()
     };
 
-    // Ringkasan matriks 5x5 opsional
     let matriks_ringkas = move || {
         let kepala = kriteria.with_value(|ks| {
             ks.iter()
-                .map(|k| view! { <th scope="col" class="angka-tengah">{k.kode.clone()}</th> })
+                .map(|k| view! { <th scope="col" class="angka-tengah mono">{k.kode.clone()}</th> })
                 .collect_view()
         });
         let baris = alternatif.with_value(|alts| {
@@ -940,7 +1047,7 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
                                             .unwrap_or_else(|| "-".to_string())
                                     })
                                 };
-                                view! { <td class="angka-tengah">{isi}</td> }
+                                view! { <td class="angka-tengah mono">{isi}</td> }
                             })
                             .collect_view()
                     });
@@ -986,10 +1093,10 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
                             <li class="bar-item" class:juara=i == 0>
                                 <div class="bar-atas">
                                     <span class="bar-judul">
-                                        <span class="no">{i + 1}</span>
+                                        <span class="no mono">{i + 1}</span>
                                         <span class="alt">{nama_alt(alts, kode)}</span>
                                     </span>
-                                    <span class="poin" title=format!("Skor SAW: {}", desimal(s, 4))>
+                                    <span class="poin mono" title=format!("Skor SAW: {}", desimal(s, 4))>
                                         {format!("{} / 100", indeks_100(s))}
                                     </span>
                                 </div>
@@ -1022,23 +1129,29 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
     };
 
     view! {
-        <section class="panel fokus" aria-labelledby="judul-form">
-            <p class="label-sesi">{format!("Sudut pandang {}", f.user.jabatan)}</p>
-            <h1 id="judul-form">"Penilaian Individual"</h1>
-            <p class="status">
-                {if terkunci {
-                    "Konsensus sudah ditetapkan, sehingga lembar penilaian ini dikunci dan hanya dapat ditinjau.".to_string()
-                } else {
-                    "Susun urutan prioritas kriteria, lalu pilih skor 1 sampai 5 untuk kelima kandidat.".to_string()
-                }}
-            </p>
+        <section class="panggung-spotlight ringkas fokus" aria-labelledby="judul-form">
+            <div class="orb-latar" aria-hidden="true"></div>
+            <div class="spotlight-isi">
+                <p class="kapsul-eyebrow">{format!("Sudut pandang {}", f.user.jabatan)}</p>
+                <h1 id="judul-form" class="judul-dua-warna">
+                    "Penilaian "
+                    <span class="aksen-indigo">"Individual"</span>
+                </h1>
+                <p class="status">
+                    {if terkunci {
+                        "Konsensus telah ditetapkan, sehingga lembar penilaian ini dikunci dan hanya dapat ditinjau.".to_string()
+                    } else {
+                        "Susun urutan prioritas kriteria, lalu pilih skor 1 sampai 5 untuk kelima kandidat.".to_string()
+                    }}
+                </p>
+            </div>
         </section>
 
         <form on:submit=on_submit class="form-nilai" novalidate>
             <section class="panel" aria-labelledby="judul-prioritas">
                 <div class="kepala-panel">
                     <h2 id="judul-prioritas">"1. Urutan prioritas kriteria"</h2>
-                    <span class="hitung">"Bobot otomatis (ROC)"</span>
+                    <span class="hitung mono">"Bobot otomatis ROC"</span>
                 </div>
                 <p class="bantu">"Kriteria di urutan teratas memperoleh porsi bobot terbesar."</p>
                 <ol class="daftar-prioritas">{daftar_prioritas}</ol>
@@ -1062,7 +1175,7 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
             <section class="panel" aria-labelledby="judul-isian">
                 <div class="kepala-panel">
                     <h2 id="judul-isian">"2. Skor kandidat SIEM"</h2>
-                    <p class="hitung" aria-live="polite">{move || format!("{} dari {jumlah_sel} skor terisi", terisi_total())}</p>
+                    <p class="hitung mono" aria-live="polite">{move || format!("{} dari {jumlah_sel} skor terisi", terisi_total())}</p>
                 </div>
                 <div class="bar-rel progres-isian" aria-hidden="true">
                     <span
@@ -1100,6 +1213,7 @@ fn FormNilai(f: FormPenilaian) -> impl IntoView {
             </div>
         </form>
     }
+    .into_any()
 }
 
 // ------------------------------------------------------------------ hasil
@@ -1131,24 +1245,33 @@ fn HalamanHasil() -> impl IntoView {
 fn Hasil(h: HasilData) -> impl IntoView {
     let Some(k) = h.konsensus.clone() else {
         return view! {
-            <section class="panel fokus" aria-labelledby="judul-hasil-kosong">
-                <p class="label-sesi">"Menunggu konsensus"</p>
-                <h1 id="judul-hasil-kosong">"Hasil belum tersedia"</h1>
-                <p class="status">
-                    {format!(
-                        "Keputusan kelompok beserta rincian penilaian tiap jabatan akan dibuka setelah seluruh {} penilai selesai dan voting Borda ditetapkan.",
-                        h.jumlah_dm
-                    )}
-                </p>
-                <div class="aksi"><a class="btn" href="/">"Kembali ke beranda"</a></div>
+            <section class="panggung-spotlight ringkas fokus" aria-labelledby="judul-hasil-kosong">
+                <div class="orb-latar" aria-hidden="true"></div>
+                <div class="spotlight-isi">
+                    <p class="kapsul-eyebrow">"Menunggu konsensus"</p>
+                    <h1 id="judul-hasil-kosong" class="judul-dua-warna">"Hasil belum tersedia"</h1>
+                    <p class="status">
+                        {format!(
+                            "Keputusan kelompok beserta rincian penilaian tiap jabatan akan dibuka setelah seluruh {} penilai selesai dan voting Borda ditetapkan.",
+                            h.jumlah_dm
+                        )}
+                    </p>
+                    <div class="aksi aksi-tengah"><a class="btn sekunder" href="/">"Kembali ke beranda"</a></div>
+                </div>
             </section>
         }
         .into_any();
     };
 
     let m = h.alternatif.len();
-    let poin_maks_kandidat = m.saturating_sub(1) * h.penilaian.len().max(1);
+    let jml_dm_nilai = h.penilaian.len().max(1);
+    let poin_maks_kandidat = m.saturating_sub(1) * jml_dm_nilai;
     let poin_juara = k.poin.get(&k.pemenang).copied().unwrap_or(0);
+    let dukung_satu = h
+        .penilaian
+        .iter()
+        .filter(|p| p.ranking.first().map(|x| x == &k.pemenang).unwrap_or(false))
+        .count();
 
     let kepala_dm = h
         .penilaian
@@ -1174,14 +1297,14 @@ fn Hasil(h: HasilData) -> impl IntoView {
                     let p_dm = m.saturating_sub(pos);
                     view! {
                         <td class="angka-tengah" title=format!("Peringkat #{pos} ({p_dm} poin)")>
-                            <span class="chip-peringkat" class:chip-satu=pos == 1>{format!("#{pos}")}</span>
+                            <span class="chip-peringkat mono" class:chip-satu=pos == 1>{format!("#{pos}")}</span>
                         </td>
                     }
                 })
                 .collect_view();
             view! {
                 <tr class:juara=i == 0>
-                    <td class="kode">{i + 1}</td>
+                    <td class="kode mono">{i + 1}</td>
                     <th scope="row">
                         <div class="sel-bar">
                             <span>{h.nama_alternatif(kode)}</span>
@@ -1191,13 +1314,12 @@ fn Hasil(h: HasilData) -> impl IntoView {
                         </div>
                     </th>
                     {sel_dm}
-                    <td class="total angka-kanan">{format!("{poin} poin")}</td>
+                    <td class="total angka-kanan mono">{format!("{poin} poin")}</td>
                 </tr>
             }
         })
         .collect_view();
 
-    // Kartu ringkas per Decision Maker (mudah dipindai, tanpa 30 angka 4-desimal bertumpuk)
     let kartu_individu = h
         .penilaian
         .iter()
@@ -1233,10 +1355,10 @@ fn Hasil(h: HasilData) -> impl IntoView {
                         <li class="bar-item padat" class:juara=idx == 0>
                             <div class="bar-atas">
                                 <span class="bar-judul">
-                                    <span class="no">{idx + 1}</span>
+                                    <span class="no mono">{idx + 1}</span>
                                     <span class="alt">{h.nama_alternatif(kode)}</span>
                                 </span>
-                                <span class="poin" title=format!("Skor SAW: {}", desimal(s, 4))>
+                                <span class="poin mono" title=format!("Skor SAW: {}", desimal(s, 4))>
                                     {indeks_100(s)}
                                 </span>
                             </div>
@@ -1249,7 +1371,7 @@ fn Hasil(h: HasilData) -> impl IntoView {
                 .collect_view();
 
             view! {
-                <article class="panel individu">
+                <article class="kartu-kaca individu">
                     <div class="individu-kepala">
                         <h3>{p.jabatan.clone()}</h3>
                         <p class="redup kecil tanpa-margin">{p.nama.clone()}</p>
@@ -1271,7 +1393,6 @@ fn Hasil(h: HasilData) -> impl IntoView {
         })
         .collect_view();
 
-    // Tabel rincian teknis lengkap (4 desimal ROC + SAW + matriks nilai mentah) di dalam <details>
     let tabel_teknis_dm = h
         .penilaian
         .iter()
@@ -1290,9 +1411,9 @@ fn Hasil(h: HasilData) -> impl IntoView {
                     let w = p.bobot.get(kode).copied().unwrap_or(0.0);
                     view! {
                         <tr>
-                            <td class="kode">{i + 1}</td>
+                            <td class="kode mono">{i + 1}</td>
                             <td>{format!("{kode} · {nama}")}</td>
-                            <td class="angka-kanan">{desimal(w, 4)}</td>
+                            <td class="angka-kanan mono">{desimal(w, 4)}</td>
                         </tr>
                     }
                 })
@@ -1301,7 +1422,7 @@ fn Hasil(h: HasilData) -> impl IntoView {
             let kepala_k = h
                 .kriteria
                 .iter()
-                .map(|kr| view! { <th scope="col" class="angka-tengah">{kr.kode.clone()}</th> })
+                .map(|kr| view! { <th scope="col" class="angka-tengah mono">{kr.kode.clone()}</th> })
                 .collect_view();
 
             let baris_saw = p
@@ -1319,16 +1440,16 @@ fn Hasil(h: HasilData) -> impl IntoView {
                                 .and_then(|r| r.get(&kr.kode))
                                 .copied()
                                 .unwrap_or(0);
-                            view! { <td class="angka-tengah">{v}</td> }
+                            view! { <td class="angka-tengah mono">{v}</td> }
                         })
                         .collect_view();
                     let s = p.skor.get(kode).copied().unwrap_or(0.0);
                     view! {
                         <tr>
-                            <td class="kode">{i + 1}</td>
+                            <td class="kode mono">{i + 1}</td>
                             <th scope="row">{h.nama_alternatif(kode)}</th>
                             {sel_mentah}
-                            <td class="angka-kanan total">{desimal(s, 4)}</td>
+                            <td class="angka-kanan total mono">{desimal(s, 4)}</td>
                         </tr>
                     }
                 })
@@ -1337,7 +1458,7 @@ fn Hasil(h: HasilData) -> impl IntoView {
             view! {
                 <div class="blok-teknis">
                     <h3>{format!("{} ({})", p.jabatan, p.nama)}</h3>
-                    <p class="kecil redup">{format!("Dikirim pada {}", waktu_tampil(&p.dikirim_pada))}</p>
+                    <p class="kecil redup mono">{format!("Tercatat {}", waktu_tampil(&p.dikirim_pada))}</p>
                     <div class="grid-dua">
                         <div>
                             <h4>"Bobot ROC (4 desimal)"</h4>
@@ -1373,24 +1494,47 @@ fn Hasil(h: HasilData) -> impl IntoView {
         .collect_view();
 
     view! {
-        <section class="panel fokus" aria-labelledby="judul-pemenang">
-            <p class="label-sesi">"Keputusan konsensus kelompok"</p>
-            <h1 id="judul-pemenang">{h.nama_alternatif(&k.pemenang)}</h1>
-            <p class="status">
-                {format!(
-                    "Unggul dengan {poin_juara} dari {poin_maks_kandidat} poin maksimal Borda. Ditetapkan oleh {} ({}) pada {}.",
-                    k.diproses_oleh,
-                    k.jabatan_pemroses,
-                    waktu_tampil(&k.diproses_pada)
-                )}
-            </p>
-            <p class="catatan-konsol">{k.catatan.clone()}</p>
-        </section>
+        <div class="hero-gabungan">
+            <section class="panggung-spotlight fokus" aria-labelledby="judul-pemenang">
+                <div class="orb-latar" aria-hidden="true"></div>
+                <div class="spotlight-isi">
+                    <p class="kapsul-eyebrow">"Keputusan konsensus kelompok"</p>
+                    <h1 id="judul-pemenang" class="judul-dua-warna">
+                        <span class="aksen-emas">{h.nama_alternatif(&k.pemenang)}</span>
+                    </h1>
+                    <p class="status">
+                        {format!(
+                            "Ditetapkan melalui {} oleh {} ({}) pada {}.",
+                            k.metode,
+                            k.diproses_oleh,
+                            k.jabatan_pemroses,
+                            waktu_tampil(&k.diproses_pada)
+                        )}
+                    </p>
+                    <p class="catatan-konsol">{k.catatan.clone()}</p>
+                </div>
+            </section>
+
+            <aside class="kolom-metrik-kaca" aria-label="Metrik hasil konsensus">
+                <div class="kartu-metrik-kaca aksen">
+                    <p class="metrik-angka emas">{format!("{poin_juara}/{poin_maks_kandidat}")}</p>
+                    <p class="metrik-ket">"perolehan poin voting Borda pemenang"</p>
+                </div>
+                <div class="kartu-metrik-kaca">
+                    <p class="metrik-angka">{format!("{dukung_satu}/{jml_dm_nilai}")}</p>
+                    <p class="metrik-ket">"penilai menempatkan di peringkat #1"</p>
+                </div>
+                <div class="kartu-metrik-kaca">
+                    <p class="metrik-angka">{m}</p>
+                    <p class="metrik-ket">"kandidat dievaluasi secara menyeluruh"</p>
+                </div>
+            </aside>
+        </div>
 
         <section class="panel" aria-labelledby="judul-rekap">
             <div class="kepala-panel">
                 <h2 id="judul-rekap">"Perolehan poin voting Borda"</h2>
-                <span class="hitung">
+                <span class="hitung mono">
                     {format!("#1 = {} poin · #{} = 0 poin", m.saturating_sub(1), m)}
                 </span>
             </div>
