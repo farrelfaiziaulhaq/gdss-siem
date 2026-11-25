@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// Semua baca-tulis Firestore dilakukan oleh server Rust dengan service account,
+// yang tidak terikat aturan ini. Akses langsung dari browser ditolak seluruhnya, sehingga
+// DM tidak dapat membaca penilaian DM lain sebelum konsensus atau memalsukan voting.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
