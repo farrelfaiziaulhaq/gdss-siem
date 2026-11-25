@@ -8,11 +8,14 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  check:
-    name: Kompilasi & unit test
+  check-linux:
+    name: Build & Test (Linux)
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -21,38 +24,66 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Pasang cargo-binstall
+        uses: cargo-bins/cargo-binstall@main
 
       - name: Pasang cargo-leptos
+        run: cargo binstall -y cargo-leptos
+
+      - name: Periksa kompilasi (SSR & WASM)
         run: |
-          if ! command -v cargo-leptos &>/dev/null; then
-            cargo install cargo-leptos --locked
-          fi
+          cargo check --features ssr
+          cargo check --lib --features hydrate --target wasm32-unknown-unknown
 
-      - name: Periksa kompilasi (SSR)
-        run: cargo check --features ssr
-
-      - name: Periksa kompilasi (WASM hydrate)
-        run: cargo check --lib --features hydrate --target wasm32-unknown-unknown
-
-      - name: Unit test
+      - name: Unit test (ROC, SAW, Borda)
         run: cargo test --features ssr --lib
 
       - name: Build lengkap
         run: cargo leptos build
 
+  check-windows:
+    name: Build & Test (Windows)
+    runs-on: windows-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validasi sintaks skrip PowerShell & Python
+        shell: pwsh
+        run: |
+          foreach ($f in @("setup.ps1", "run.ps1", "scripts/package_release.ps1")) {
+            $errors = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errors)
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error $_ }
+              exit 1
+            }
+            Write-Host "OK: $f"
+          }
+          python -m py_compile scripts/seed_emulator.py
+
+      - name: Pasang Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Periksa kompilasi Windows (SSR & WASM)
+        run: |
+          cargo check --features ssr
+          cargo check --lib --features hydrate --target wasm32-unknown-unknown
+
+      - name: Unit test Windows (ROC, SAW, Borda)
+        run: cargo test --features ssr --lib
+
   lint:
-    name: Format & clippy
+    name: Format, Clippy & Skrip Bash
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -63,29 +94,16 @@ jobs:
           targets: wasm32-unknown-unknown
           components: rustfmt, clippy
 
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-lint-
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
 
-      - name: Periksa format
-        run: cargo fmt -- --check
+      - name: Periksa format & clippy
+        run: |
+          cargo fmt -- --check
+          cargo clippy --features ssr -- -D warnings
+          cargo clippy --lib --features hydrate --target wasm32-unknown-unknown -- -D warnings
 
-      - name: Clippy (SSR)
-        run: cargo clippy --features ssr -- -D warnings
-
-  seed-check:
-    name: Validasi skrip seed
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Periksa sintaks Python
-        run: python3 -m py_compile scripts/seed_emulator.py
+      - name: Validasi sintaks Python & Bash
+        run: |
+          python3 -m py_compile scripts/seed_emulator.py
+          bash -n setup.sh run.sh scripts/dev.sh scripts/package_release.sh
