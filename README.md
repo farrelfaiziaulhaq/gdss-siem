@@ -192,6 +192,7 @@ Pada data simulasi bawaan, perbedaan prioritas tiap jabatan menghasilkan ranking
 | **PRTG Network Monitor** | `#5` (0 poin) | `#5` (0 poin) | `#5` (0 poin) | **0** | **5** |
 
 Penjelasan lengkap perhitungan matriks ternormalisasi dan jawaban pertanyaan sidang tersedia di:
+- **[`docs/Perhitungan-GDSS-SIEM.xlsx`](docs/Perhitungan-GDSS-SIEM.xlsx)** : Workbook Excel interaktif berisi **588 rumus dinamis** (ROC, normalisasi & matriks terbobot SAW untuk 3 DM, voting Borda + pemecah seri CISO, 2 grafik perbandingan, serta penjelasan lengkap tiap algoritma di sheet `07_Penjelasan_Rumus`).
 - **[`docs/RANCANGAN.md`](docs/RANCANGAN.md)** : Dokumen rancangan akademik lengkap (Bab 1 Latar Belakang s.d. Bab 7 Progres & Daftar Pustaka).
 - **[`docs/LAPORAN-DAN-TANYA-JAWAB.md`](docs/LAPORAN-DAN-TANYA-JAWAB.md)** : Peta algoritma ke lokasi kode, hitungan manual langkah demi langkah, arsitektur keamanan Firestore, daftar Q&A sidang/presentasi, serta skenario demo di depan dosen.
 
@@ -245,10 +246,12 @@ gdss-siem/
 ├── public/fonts/               # Font IBM Plex Sans (woff2, self-hosted, lisensi SIL OFL)
 ├── scripts/
 │   ├── seed_emulator.py        # Pengisi akun Auth & koleksi awal Firestore (Windows & Linux)
+│   ├── generate_excel.py       # Generator workbook Excel rumus dinamis ROC + SAW + Borda
 │   ├── dev.sh                  # Mode watch pengembangan (Linux)
 │   ├── package_release.sh      # Pengemas bundel rilis Linux (.tar.gz + SHA256)
 │   └── package_release.ps1     # Pengemas bundel rilis Windows (.zip + SHA256 + peluncur .bat)
 ├── docs/
+│   ├── Perhitungan-GDSS-SIEM.xlsx # Workbook Excel interaktif 7 sheet (588 rumus + penjelasan)
 │   ├── RANCANGAN.md            # Dokumen akademik lengkap (Bab 1 s.d. Bab 7 + daftar pustaka)
 │   ├── LAPORAN-DAN-TANYA-JAWAB.md # Peta algoritma, bukti kode, hitung manual & Q&A sidang
 │   └── img/                    # Tangkapan layar aplikasi untuk dokumentasi
